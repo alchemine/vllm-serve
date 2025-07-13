@@ -1,0 +1,20 @@
+services:
+  vllm:
+    build:
+      context: .
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    ports:
+      - "58000:8000"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+    ipc: host
+    command: --model Qwen/Qwen3-14B-AWQ
+    restart: unless-stopped
