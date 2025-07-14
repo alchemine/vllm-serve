@@ -18,9 +18,9 @@ services:
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
       - MODEL=${MODEL}
-      - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.9}
-      - MAX_NUM_SEQS=${MAX_NUM_SEQS:-8}
-      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-32768}
+      - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION}
+      - MAX_NUM_SEQS=${MAX_NUM_SEQS}
+      - MAX_MODEL_LEN=${MAX_MODEL_LEN}
     ipc: host
     restart: unless-stopped
     networks:
@@ -28,7 +28,6 @@ services:
     command: >
       --model ${MODEL}
       --trust-remote-code
-      --max-model-len ${MAX_MODEL_LEN}
       --gpu-memory-utilization ${GPU_MEMORY_UTILIZATION}
       --max-num-seqs ${MAX_NUM_SEQS}
 
