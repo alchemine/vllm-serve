@@ -2,6 +2,8 @@ services:
   vllm:
     build:
       context: .
+    container_name: vllm
+    runtime: nvidia
     deploy:
       resources:
         reservations:
@@ -13,8 +15,116 @@ services:
       - ~/.cache/huggingface:/root/.cache/huggingface
     ports:
       - "58000:8000"
+      - "58001:8001"  # VLLM metrics endpoint
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+      - MODEL=${MODEL}
+      - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.9}
+      - MAX_NUM_SEQS=${MAX_NUM_SEQS:-8}
+      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-32768}
     ipc: host
-    command: --model Qwen/Qwen3-14B-AWQ
+    command: >
+      --model ${MODEL}
+      --quantization awq
+      --trust-remote-code
+      --max-model-len ${MAX_MODEL_LEN}
+      --gpu-memory-utilization ${GPU_MEMORY_UTILIZATION}
+      --max-num-seqs ${MAX_NUM_SEQS}
+      --use-tqdm-on-load
+      --enable-metrics
+      --metrics-port 8001
     restart: unless-stopped
+    networks:
+      - vllm-network
+
+  # NVIDIA DCGM Exporter for GPU metrics
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.1.8-ubuntu22.04
+    container_name: dcgm-exporter
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ports:
+      - "59400:9400"
+    environment:
+      - DCGM_EXPORTER_NO_HOSTNAME=1
+      - DCGM_EXPORTER_INTERVAL=30000  # 30초마다 수집 (밀리초 단위)
+    cap_add:
+      - SYS_ADMIN
+    restart: unless-stopped
+    networks:
+      - vllm-network
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+    - 9093:9093
+    command:
+    - --config.file=/etc/alertmanager/alertmanager.yml
+    - --storage.path=/alertmanager
+    volumes:
+    - ./alertmanager:/etc/alertmanager
+    deploy:
+      mode: global
+    restart: always
+    networks:
+      - vllm-network
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus/config:/etc/prometheus
+      - prometheus-data:/prometheus
+    ports:
+      - 59090:9090
+    command:
+      - '--storage.tsdb.path=/prometheus'
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: always
+    networks:
+      - vllm-network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - 53000:3000
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+    restart: always
+    depends_on:
+      - prometheus
+    networks:
+      - vllm-network
+
+  node_exporter:
+    image: prom/node-exporter
+    container_name: node_exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - 59100:9100
+    networks:
+      - vllm-network
+
+volumes:
+  grafana-data:
+  prometheus-data:
+
+networks:
+  vllm-network:
+    driver: bridge

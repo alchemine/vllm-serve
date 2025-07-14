@@ -2,7 +2,7 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 
 
-llm_server_url = "http://localhost:58000/v1"
+llm_server_url = "http://192.168.0.19:58000/v1"
 llm = ChatOpenAI(
     openai_api_key="EMPTY",
     openai_api_base=llm_server_url,
