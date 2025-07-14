@@ -16,8 +16,7 @@ def test_prometheus_endpoints():
     endpoints = {
         "Prometheus": "http://localhost:59090/api/v1/targets",
         "Node Exporter": "http://localhost:59100/metrics",
-        "DCGM Exporter": "http://localhost:59400/metrics",
-        "VLLM Metrics": "http://localhost:58001/metrics",
+        "VLLM Metrics": "http://localhost:58000/metrics",
         "Grafana": "http://localhost:53000/api/health"
     }
     
@@ -63,50 +62,21 @@ def test_vllm_inference():
         except Exception as e:
             print(f"테스트 {i} 실패: {e}")
 
-def check_gpu_metrics():
-    """GPU 메트릭을 확인합니다."""
-    try:
-        response = requests.get("http://localhost:59400/metrics", timeout=5)
-        if response.status_code == 200:
-            metrics = response.text
-            gpu_memory_used = [line for line in metrics.split('\n') if 'DCGM_FI_DEV_FB_USED' in line and not line.startswith('#')]
-            gpu_memory_total = [line for line in metrics.split('\n') if 'DCGM_FI_DEV_FB_TOTAL' in line and not line.startswith('#')]
-            gpu_util = [line for line in metrics.split('\n') if 'DCGM_FI_DEV_GPU_UTIL' in line and not line.startswith('#')]
-            
-            print("\n=== GPU 메트릭 확인 ===")
-            if gpu_memory_used:
-                print("GPU 메모리 사용량:", gpu_memory_used[0])
-            if gpu_memory_total:
-                print("GPU 메모리 총량:", gpu_memory_total[0])
-            if gpu_util:
-                print("GPU 사용률:", gpu_util[0])
-        else:
-            print(f"GPU 메트릭 조회 실패: {response.status_code}")
-    except Exception as e:
-        print(f"GPU 메트릭 확인 중 오류: {e}")
-
 def main():
     """메인 테스트 함수"""
     print("VLLM VRAM 모니터링 시스템 테스트")
     print("=" * 50)
     
-    # 1. 엔드포인트 상태 확인
+    # 엔드포인트 상태 확인
     test_prometheus_endpoints()
     
-    # 2. GPU 메트릭 확인
-    check_gpu_metrics()
-    
-    # 3. VLLM 추론 테스트 (GPU 사용량 증가)
+    # VLLM 추론 테스트 (GPU 사용량 증가)
     test_vllm_inference()
-    
-    # 4. 다시 GPU 메트릭 확인
-    print("\n=== 추론 후 GPU 메트릭 재확인 ===")
-    check_gpu_metrics()
-    
+        
     print("\n=== 테스트 완료 ===")
     print("Grafana 대시보드: http://localhost:53000 (admin/admin)")
     print("Prometheus: http://localhost:59090")
     print("VLLM 서버: http://localhost:58000")
 
 if __name__ == "__main__":
-    main() 
+    main()

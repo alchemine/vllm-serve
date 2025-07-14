@@ -1,42 +1,14 @@
 global:
-  scrape_interval: 15s
-  scrape_timeout: 15s
-  evaluation_interval: 2m
-
-  external_labels:
-    monitor: 't4y-monitor'
-    query_log_file: query_log_file.log
+  scrape_interval: 5s
+  evaluation_interval: 30s
 
 scrape_configs:
-  - job_name: 'monitoring-item'
-    scrape_interval: 10s
-    scrape_timeout: 10s
-    metrics_path: '/metrics'
-    scheme: 'http'
-
+  - job_name: vllm
     static_configs:
-      - targets: ['prometheus:9090', 'node_exporter:9100']
-        labels:
-          service: 'monitor'
-
-  # VLLM 메트릭스 스크래핑
-  - job_name: 'vllm-metrics'
-    scrape_interval: 10s
-    scrape_timeout: 10s
-    metrics_path: '/metrics'
-    scheme: 'http'
+      - targets:
+          - 'vllm:8000'
+  
+  - job_name: node_exporter
     static_configs:
-      - targets: ['vllm:8001']
-        labels:
-          service: 'vllm'
-
-  # NVIDIA GPU 메트릭스 스크래핑
-  - job_name: 'dcgm-exporter'
-    scrape_interval: 10s
-    scrape_timeout: 10s
-    metrics_path: '/metrics'
-    scheme: 'http'
-    static_configs:
-      - targets: ['dcgm-exporter:9400']
-        labels:
-          service: 'gpu'
+      - targets:
+          - 'node_exporter:9100'
